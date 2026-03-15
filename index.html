@@ -466,35 +466,6 @@ body {
 .sync-status { font-size: 11px; color: #888; flex: 1; text-align: right; }
 .sync-status.ok { color: #27ae60; }
 .sync-status.err { color: #c62828; }
-.sync-setup-btn {
-  background: none; border: 1px solid #ddd; border-radius: 16px;
-  padding: 5px 10px; font-size: 11px; color: #888; cursor: pointer;
-}
-
-/* 同期設定モーダル */
-.sync-modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 300; align-items: center; justify-content: center; }
-.sync-modal.show { display: flex; }
-.sync-modal-body {
-  background: white; border-radius: 16px; width: 90%; max-width: 400px;
-  padding: 24px; box-shadow: 0 8px 30px rgba(0,0,0,0.2);
-}
-.sync-modal-body h3 { font-size: 16px; color: #1a5276; margin-bottom: 12px; }
-.sync-modal-body p { font-size: 13px; color: #666; margin-bottom: 12px; line-height: 1.5; }
-.sync-key-input {
-  width: 100%; padding: 12px; border: 1.5px solid #ddd; border-radius: 10px;
-  font-size: 13px; font-family: monospace; word-break: break-all;
-}
-.sync-key-input:focus { border-color: #2980b9; outline: none; }
-.sync-modal-btns { display: flex; gap: 8px; margin-top: 16px; }
-.sync-modal-btns button {
-  flex: 1; padding: 12px; border: none; border-radius: 10px;
-  font-size: 14px; font-weight: 700; cursor: pointer;
-}
-.sync-connected {
-  display: flex; align-items: center; gap: 8px; padding: 10px;
-  background: #e8f5e9; border-radius: 10px; margin-bottom: 12px;
-  font-size: 13px; color: #2e7d32; font-weight: 600;
-}
 
 @media (min-width: 500px) { body { max-width: 500px; margin: 0 auto; } }
 </style>
@@ -508,7 +479,6 @@ body {
     <button class="sync-btn sync-save" onclick="cloudSave()">💾 保存</button>
     <button class="sync-btn sync-load" onclick="cloudLoad()">📥 読込</button>
     <span class="sync-status" id="syncStatus"></span>
-    <button class="sync-setup-btn" onclick="openSyncSetup()">⚙️</button>
   </div>
   <div class="search-bar">
     <div class="search-wrap">
@@ -1617,51 +1587,56 @@ function show(id) { document.querySelectorAll('.page').forEach(p=>p.classList.re
 function esc(s) { const d=document.createElement('div'); d.textContent=s; return d.innerHTML; }
 
 // ====== クラウド同期 ======
-const SYNC_KEY_STORAGE = 'dt2_sync_key';
-
-function getSyncConfig() {
-  const key = localStorage.getItem(SYNC_KEY_STORAGE);
-  if(!key) return null;
-  try {
-    const decoded = atob(key);
-    const [gistId, token] = decoded.split('|');
-    if(!gistId || !token) return null;
-    return { gistId, token };
-  } catch { return null; }
+// URLの#以降からキーを読み取り、localStorageに保存
+(function initSync(){
+  const hash = location.hash.slice(1);
+  if(hash && hash.includes('|')) {
+    localStorage.setItem('dt2_sync', hash);
+    history.replaceState(null, '', location.pathname); // URLからキーを消す
+  }
+})();
+function syncCfg() {
+  const v = localStorage.getItem('dt2_sync');
+  if(!v) return null;
+  const [g,t] = v.split('|');
+  return (g&&t) ? {gistId:g, token:t} : null;
 }
+const SYNC = syncCfg();
 
 function setSyncStatus(msg, cls) {
   const el = document.getElementById('syncStatus');
-  el.textContent = msg;
-  el.className = 'sync-status' + (cls ? ' '+cls : '');
+  if(el) { el.textContent = msg; el.className = 'sync-status' + (cls ? ' '+cls : ''); }
 }
 
 async function cloudSave() {
-  const cfg = getSyncConfig();
-  if(!cfg) { openSyncSetup(); return; }
+  const c = syncCfg();
+  if(!c) { alert('同期URLで開き直してください'); return; }
   setSyncStatus('保存中...', '');
   try {
     const data = JSON.stringify(load());
-    const res = await fetch('https://api.github.com/gists/'+cfg.gistId, {
+    const res = await fetch('https://api.github.com/gists/'+c.gistId, {
       method: 'PATCH',
-      headers: { 'Authorization': 'token '+cfg.token, 'Content-Type': 'application/json' },
+      headers: { 'Authorization': 'token '+c.token, 'Content-Type': 'application/json' },
       body: JSON.stringify({ files: { 'deals.json': { content: data } } })
     });
     if(!res.ok) throw new Error(res.status);
     const now = new Date();
-    setSyncStatus('✓ 保存完了 ' + now.getHours()+':'+String(now.getMinutes()).padStart(2,'0'), 'ok');
+    const t = now.getHours()+':'+String(now.getMinutes()).padStart(2,'0');
+    setSyncStatus('✓ 保存完了 '+t, 'ok');
+    alert('保存しました');
   } catch(e) {
-    setSyncStatus('✕ 保存失敗: '+e.message, 'err');
+    setSyncStatus('✕ 保存失敗', 'err');
+    alert('保存に失敗しました: '+e.message);
   }
 }
 
 async function cloudLoad() {
-  const cfg = getSyncConfig();
-  if(!cfg) { openSyncSetup(); return; }
+  const c = syncCfg();
+  if(!c) { setSyncStatus('未接続', ''); return; }
   setSyncStatus('読込中...', '');
   try {
-    const res = await fetch('https://api.github.com/gists/'+cfg.gistId, {
-      headers: { 'Authorization': 'token '+cfg.token }
+    const res = await fetch('https://api.github.com/gists/'+c.gistId, {
+      headers: { 'Authorization': 'token '+c.token }
     });
     if(!res.ok) throw new Error(res.status);
     const gist = await res.json();
@@ -1671,68 +1646,16 @@ async function cloudLoad() {
       save(deals);
       renderList();
       const now = new Date();
-      setSyncStatus('✓ 読込完了 '+deals.length+'件 ' + now.getHours()+':'+String(now.getMinutes()).padStart(2,'0'), 'ok');
-    } else {
-      setSyncStatus('✕ データ形式エラー', 'err');
+      const t = now.getHours()+':'+String(now.getMinutes()).padStart(2,'0');
+      setSyncStatus('✓ '+deals.length+'件 '+t, 'ok');
     }
   } catch(e) {
-    setSyncStatus('✕ 読込失敗: '+e.message, 'err');
+    setSyncStatus('✕ 読込失敗', 'err');
   }
 }
 
-function openSyncSetup() {
-  const cfg = getSyncConfig();
-  const key = localStorage.getItem(SYNC_KEY_STORAGE) || '';
-  let html = `<div class="sync-modal show" id="syncModal" onclick="if(event.target===this)closeSyncSetup()">
-    <div class="sync-modal-body">
-      <h3>☁️ クラウド同期の設定</h3>`;
-  if(cfg) {
-    html += `<div class="sync-connected">✓ 接続済み</div>`;
-  }
-  html += `<p>接続コードを入力してください。<br>PCで設定済みの場合、同じコードをスマホにも入力すると同期できます。</p>
-      <textarea class="sync-key-input" id="syncKeyInput" rows="3" placeholder="接続コードを貼り付け">${esc(key)}</textarea>
-      <div class="sync-modal-btns">
-        <button style="background:#e8e8e8;color:#333;" onclick="closeSyncSetup()">閉じる</button>
-        <button style="background:#1a5276;color:white;" onclick="saveSyncKey()">接続</button>
-      </div>
-    </div>
-  </div>`;
-  // 既存のモーダルがあれば削除
-  const old = document.getElementById('syncModal');
-  if(old) old.remove();
-  document.body.insertAdjacentHTML('beforeend', html);
-}
-
-function closeSyncSetup() {
-  const m = document.getElementById('syncModal');
-  if(m) m.remove();
-}
-
-function saveSyncKey() {
-  const key = document.getElementById('syncKeyInput').value.trim();
-  if(!key) { alert('接続コードを入力してください'); return; }
-  try {
-    const decoded = atob(key);
-    const parts = decoded.split('|');
-    if(parts.length !== 2 || !parts[0] || !parts[1]) throw new Error();
-  } catch {
-    alert('接続コードが正しくありません'); return;
-  }
-  localStorage.setItem(SYNC_KEY_STORAGE, key);
-  closeSyncSetup();
-  setSyncStatus('✓ 接続完了', 'ok');
-  // 接続したら自動読込
-  cloudLoad();
-}
-
-// 起動時に接続済みなら自動読込
-(function(){
-  const cfg = getSyncConfig();
-  if(cfg) {
-    setSyncStatus('自動読込中...', '');
-    cloudLoad();
-  }
-})();
+// 起動時に自動読込
+cloudLoad();
 
 renderList();
 </script>
