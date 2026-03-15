@@ -1,0 +1,1482 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>案件管理</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Hiragino Sans', sans-serif;
+  background: #f5f5f7;
+  color: #1d1d1f;
+  -webkit-tap-highlight-color: transparent;
+}
+.header {
+  background: linear-gradient(135deg, #1a5276, #2980b9);
+  color: white;
+  padding: 14px 16px;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+.header h1 { font-size: 17px; font-weight: 700; }
+
+/* === 検索バー === */
+.search-bar {
+  padding: 8px 12px;
+  background: #eef3f7;
+  position: sticky; top: 45px; z-index: 90;
+}
+.search-input {
+  width: 100%; padding: 10px 14px 10px 36px;
+  border: 1.5px solid #ddd; border-radius: 10px;
+  font-size: 15px; background: white;
+  -webkit-appearance: none;
+}
+.search-input:focus { border-color: #2980b9; outline: none; box-shadow: 0 0 0 3px rgba(41,128,185,0.1); }
+.search-wrap { position: relative; }
+.search-icon {
+  position: absolute; left: 12px; top: 50%; transform: translateY(-50%);
+  font-size: 15px; color: #999; pointer-events: none;
+}
+.search-clear {
+  position: absolute; right: 10px; top: 50%; transform: translateY(-50%);
+  background: #ccc; color: white; border: none; border-radius: 50%;
+  width: 20px; height: 20px; font-size: 12px; line-height: 20px;
+  text-align: center; cursor: pointer; display: none;
+}
+.search-clear.show { display: block; }
+.search-count { font-size: 11px; color: #888; margin-top: 4px; padding-left: 4px; }
+
+/* === 案件一覧 === */
+.page { display: none; }
+.page.active { display: block; }
+
+.deal-list { padding: 8px; padding-bottom: 80px; }
+.deal-card {
+  background: white;
+  border-radius: 12px;
+  padding: 14px;
+  margin-bottom: 8px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.deal-card:active { opacity: 0.7; }
+.deal-type-badge {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 4px 8px;
+  border-radius: 6px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.type-used_house { background: #e8f5e9; color: #2e7d32; }
+.type-new_house { background: #e3f2fd; color: #1565c0; }
+.type-mansion { background: #fce4ec; color: #c62828; }
+.type-land { background: #fff3e0; color: #e65100; }
+.deal-body { flex: 1; min-width: 0; }
+.deal-location { font-size: 15px; font-weight: 700; }
+.deal-pref { font-size: 11px; color: #999; font-weight: 600; margin-bottom: 1px; }
+.deal-price { font-size: 14px; font-weight: 800; color: #1a5276; margin-top: 3px; }
+.deal-people { font-size: 12px; color: #666; margin-top: 2px; display: flex; gap: 8px; }
+.deal-people span { white-space: nowrap; }
+.deal-progress-mini {
+  display: flex; align-items: center; gap: 6px; margin-top: 6px;
+}
+.mini-bar {
+  flex: 1; height: 4px; background: #e8e8e8; border-radius: 2px; overflow: hidden;
+}
+.mini-fill { height: 100%; border-radius: 2px; transition: width 0.3s; }
+.mini-text { font-size: 11px; font-weight: 700; color: #888; }
+.pct-low { background: #e74c3c; }
+.pct-mid { background: #f39c12; }
+.pct-high { background: #27ae60; }
+
+.empty-msg { text-align: center; padding: 60px 20px; color: #999; font-size: 14px; }
+
+/* FAB */
+.fab {
+  position: fixed; bottom: 20px; right: 20px;
+  width: 56px; height: 56px; border-radius: 28px;
+  background: linear-gradient(135deg, #1a5276, #2980b9);
+  color: white; border: none; font-size: 28px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+  z-index: 50;
+  display: flex; align-items: center; justify-content: center;
+}
+.fab:active { transform: scale(0.9); }
+
+/* === 新規モーダル === */
+.modal-bg {
+  display: none; position: fixed; inset: 0;
+  background: rgba(0,0,0,0.5); z-index: 200;
+  align-items: flex-end; justify-content: center;
+}
+.modal-bg.show { display: flex; }
+.modal {
+  background: white; border-radius: 16px 16px 0 0;
+  width: 100%; max-width: 500px; padding: 20px;
+}
+.modal h2 { font-size: 17px; margin-bottom: 16px; }
+
+.type-select { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 16px; }
+.type-btn {
+  padding: 12px; border: 2px solid #ddd; border-radius: 10px;
+  background: white; font-size: 14px; font-weight: 700;
+  text-align: center; cursor: pointer; transition: all 0.15s;
+}
+.type-btn.selected { border-color: #1a5276; background: #eaf2f8; color: #1a5276; }
+.type-btn:active { transform: scale(0.96); }
+
+.field { margin-bottom: 12px; }
+.field label { display: block; font-size: 12px; font-weight: 600; color: #888; margin-bottom: 4px; }
+.field input, .field select {
+  width: 100%; padding: 10px 12px; border: 1px solid #ddd;
+  border-radius: 8px; font-size: 16px; background: white;
+}
+.btn-row { display: flex; gap: 8px; margin-top: 16px; }
+.btn {
+  flex: 1; padding: 13px; border: none; border-radius: 10px;
+  font-size: 15px; font-weight: 700; cursor: pointer;
+}
+.btn-ok { background: #1a5276; color: white; }
+.btn-cancel { background: #e8e8e8; color: #333; }
+
+/* === 詳細画面 === */
+.detail-header {
+  background: linear-gradient(135deg, #1a5276, #2980b9);
+  color: white; padding: 14px 16px 16px; position: sticky; top: 0; z-index: 100;
+}
+.detail-header .back { font-size: 14px; opacity: 0.8; cursor: pointer; margin-bottom: 8px; }
+.detail-header .d-type-badge {
+  display: inline-block; font-size: 11px; font-weight: 700;
+  padding: 3px 10px; border-radius: 12px;
+  background: rgba(255,255,255,0.2); color: white; margin-bottom: 6px;
+}
+.detail-header .title { font-size: 20px; font-weight: 800; margin-bottom: 2px; letter-spacing: 0.5px; }
+.detail-header .d-pref { font-size: 12px; opacity: 0.7; margin-bottom: 6px; }
+.detail-header .d-price { font-size: 18px; font-weight: 800; color: #ffd700; margin-bottom: 6px; }
+.detail-header .d-people {
+  display: flex; gap: 12px; font-size: 13px; opacity: 0.9;
+}
+.detail-header .d-people span {
+  background: rgba(255,255,255,0.15); padding: 3px 10px; border-radius: 8px;
+}
+.detail-header .d-edit-btn {
+  position: absolute; top: 14px; right: 16px;
+  background: rgba(255,255,255,0.2); border: none; color: white;
+  padding: 4px 12px; border-radius: 16px; font-size: 12px; font-weight: 700;
+  cursor: pointer;
+}
+.detail-header .d-edit-btn:active { opacity: 0.7; }
+.detail-header { position: sticky; top: 0; z-index: 100; }
+
+/* 編集パネル */
+.edit-panel {
+  background: white; margin: 0 8px; border-radius: 0 0 12px 12px;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.08); overflow: hidden;
+}
+.edit-panel.hide { display: none; }
+.edit-panel-inner { padding: 14px; }
+.edit-panel-title {
+  font-size: 14px; font-weight: 700; color: #1a5276; margin-bottom: 10px;
+  display: flex; justify-content: space-between; align-items: center;
+}
+.edit-field { margin-bottom: 10px; }
+.edit-field label { display: block; font-size: 11px; font-weight: 600; color: #888; margin-bottom: 3px; }
+.edit-field input, .edit-field select {
+  width: 100%; padding: 9px 12px; border: 1.5px solid #ddd;
+  border-radius: 8px; font-size: 15px; background: #fafafa;
+}
+.edit-field input:focus, .edit-field select:focus { border-color: #2980b9; background: white; outline: none; }
+.edit-row { display: flex; gap: 8px; }
+.edit-row .edit-field { flex: 1; }
+
+/* ステータスボタン群 */
+.status-btns {
+  display: flex; flex-wrap: wrap; gap: 6px;
+  padding: 8px; background: #eef3f7;
+}
+.status-chip {
+  padding: 6px 12px; border-radius: 20px; font-size: 12px; font-weight: 700;
+  border: 1.5px solid #ddd; background: white; color: #999; cursor: pointer;
+  transition: all 0.15s; display: flex; align-items: center; gap: 4px;
+}
+.status-chip:active { transform: scale(0.95); }
+.status-chip.filled { border-color: #27ae60; background: #e8f5e9; color: #2e7d32; }
+.status-chip.warn { border-color: #e65100; background: #fff3e0; color: #e65100; }
+.status-chip.alert { border-color: #c62828; background: #fce4ec; color: #c62828; }
+.status-chip .chip-dot {
+  width: 6px; height: 6px; border-radius: 50%; background: #ccc; flex-shrink: 0;
+}
+.status-chip.filled .chip-dot { background: #27ae60; }
+.status-chip.warn .chip-dot { background: #e65100; }
+.status-chip.alert .chip-dot { background: #c62828; }
+
+/* ステータス展開パネル */
+.status-panel {
+  background: white; margin: 0 8px; border-radius: 0 0 12px 12px;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.08); overflow: hidden;
+}
+.status-panel.hide { display: none; }
+.status-panel-inner { padding: 14px; }
+.status-panel-title {
+  font-size: 14px; font-weight: 700; color: #1a5276; margin-bottom: 10px;
+  display: flex; justify-content: space-between; align-items: center;
+}
+.status-panel-close {
+  font-size: 12px; color: #999; background: #f0f0f0; border: none;
+  border-radius: 12px; padding: 3px 10px; cursor: pointer; font-weight: 600;
+}
+.status-row {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 8px 0; border-bottom: 1px solid #f5f5f5;
+}
+.status-row:last-child { border-bottom: none; }
+.status-label { font-size: 13px; font-weight: 600; color: #555; flex-shrink: 0; }
+.status-val { display: flex; align-items: center; gap: 6px; }
+.status-date {
+  padding: 6px 10px; border: 1.5px solid #ddd; border-radius: 8px;
+  font-size: 14px; background: #fafafa; width: 150px; text-align: center;
+}
+.status-date:focus { border-color: #2980b9; background: white; outline: none; }
+.status-date::-webkit-calendar-picker-indicator { opacity: 0.5; }
+.status-toggle { display: flex; gap: 3px; }
+.status-toggle button {
+  padding: 5px 14px; border-radius: 16px; font-size: 12px; font-weight: 700;
+  border: 1.5px solid #ddd; background: white; color: #999; cursor: pointer;
+  transition: all 0.15s;
+}
+.status-toggle button.s-yes { border-color: #27ae60; background: #27ae60; color: white; }
+.status-toggle button.s-no { border-color: #e74c3c; background: #e74c3c; color: white; }
+.status-toggle button.s-na { border-color: #f39c12; background: #f39c12; color: white; }
+.status-days { font-size: 11px; font-weight: 700; white-space: nowrap; }
+
+.detail-body { padding: 8px; padding-bottom: 80px; }
+
+.section {
+  background: white; border-radius: 12px; margin-bottom: 12px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.08); overflow: hidden;
+}
+.sec-head {
+  padding: 12px 14px; font-size: 14px; font-weight: 700;
+  display: flex; justify-content: space-between; align-items: center;
+  cursor: pointer; user-select: none;
+}
+.badge {
+  font-size: 12px; padding: 3px 10px; border-radius: 10px; font-weight: 800;
+}
+.badge-done { background: #e8f5e9; color: #2e7d32; }
+.badge-todo { background: #fff3e0; color: #e65100; }
+.sec-body { padding: 0 14px 8px; }
+
+.item {
+  display: flex; align-items: center; padding: 10px 0;
+  border-bottom: 1px solid #f0f0f0; gap: 10px;
+}
+.item:last-child { border-bottom: none; }
+.item input[type="checkbox"] {
+  width: 22px; height: 22px; accent-color: #27ae60; flex-shrink: 0;
+}
+.item-label { font-size: 14px; }
+.item-sub { font-size: 11px; color: #999; }
+.item.done .item-label { color: #bbb; text-decoration: line-through; }
+
+.memo-box {
+  width: 100%; border: 1px solid #ddd; border-radius: 8px;
+  padding: 10px; font-size: 14px; min-height: 50px;
+  resize: vertical; font-family: inherit;
+}
+
+/* 要取得マーク（モダンUI版） */
+.req-btn {
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 700;
+  border: none;
+  background: #f1f3f5;
+  color: #adb5bd;
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.req-btn:hover {
+  background: #e9ecef;
+  color: #495057;
+}
+.req-btn.on {
+  background: linear-gradient(135deg, #ff4757, #ff6b81);
+  color: white;
+  box-shadow: 0 4px 10px rgba(255, 71, 87, 0.3);
+  transform: translateY(-1px);
+}
+.req-btn:active {
+  transform: scale(0.92) translateY(0);
+  box-shadow: 0 1px 3px rgba(255, 71, 87, 0.2);
+}
+
+/* 接道カード */
+.road-card {
+  background: #f8f9fa; border-radius: 8px; padding: 10px;
+  margin-bottom: 8px; border: 1px solid #e8e8e8;
+}
+.road-card .road-row {
+  display: flex; gap: 6px; margin-bottom: 6px; flex-wrap: wrap;
+}
+.road-card select, .road-card input {
+  padding: 7px 6px; border: 1px solid #ddd; border-radius: 6px;
+  font-size: 13px; background: white;
+}
+.road-card select { -webkit-appearance: none; }
+.road-card .road-num { width: 60px; text-align: center; }
+.road-card .road-unit { font-size: 12px; color: #666; align-self: center; }
+.road-del {
+  background: none; border: none; color: #c0392b; font-size: 12px;
+  cursor: pointer; padding: 4px 8px; font-weight: 600;
+}
+.road-add-btn {
+  display: block; width: 100%; padding: 10px;
+  background: #eaf2f8; color: #1a5276; border: 1px dashed #1a5276;
+  border-radius: 8px; font-size: 13px; font-weight: 600;
+  cursor: pointer; text-align: center;
+}
+.road-add-btn:active { opacity: 0.7; }
+
+/* ヒアリングフォーム */
+.hear-form { padding: 4px 0; }
+.hear-q {
+  padding: 14px 0; border-bottom: 1px solid #f0f0f0;
+}
+.hear-q:last-child { border-bottom: none; }
+.hear-label {
+  font-size: 16px; font-weight: 700; color: #1a5276; margin-bottom: 8px;
+}
+.hear-num { display: inline-block; width: 24px; height: 24px; border-radius: 12px; background: #1a5276; color: white; text-align: center; line-height: 24px; font-size: 12px; font-weight: 700; margin-right: 6px; }
+.hear-input {
+  width: 100%; padding: 12px 14px; border: 1.5px solid #ddd; border-radius: 10px;
+  font-size: 17px; background: #fafafa; transition: border-color 0.2s;
+}
+.hear-input:focus { border-color: #2980b9; background: white; outline: none; box-shadow: 0 0 0 3px rgba(41,128,185,0.1); }
+.hear-select {
+  display: flex; gap: 8px; flex-wrap: wrap;
+}
+.hear-opt {
+  padding: 10px 18px; border: 2px solid #ddd; border-radius: 24px;
+  font-size: 15px; background: white; cursor: pointer; font-weight: 700;
+  transition: all 0.15s;
+}
+.hear-opt.on { border-color: #1a5276; background: linear-gradient(135deg, #1a5276, #2980b9); color: white; box-shadow: 0 2px 6px rgba(26,82,118,0.25); }
+.hear-opt:active { transform: scale(0.95); }
+.hear-filled { border-left: 4px solid #27ae60; padding-left: 10px; }
+
+/* 施設カード */
+.fac-card {
+  background: #f8f9fa; border-radius: 10px; padding: 12px;
+  margin-bottom: 10px; border: 1.5px solid #e8e8e8;
+}
+.fac-card.fac-none { opacity: 0.5; }
+.fac-title {
+  font-size: 15px; font-weight: 700; color: #1a5276; margin-bottom: 8px;
+  display: flex; justify-content: space-between; align-items: center;
+}
+.fac-toggle {
+  display: flex; gap: 4px;
+}
+.fac-toggle button {
+  padding: 4px 14px; border-radius: 16px; font-size: 12px; font-weight: 700;
+  border: 1.5px solid #ddd; background: white; color: #999; cursor: pointer;
+}
+.fac-toggle button.on-yes { border-color: #27ae60; background: #27ae60; color: white; }
+.fac-toggle button.on-no { border-color: #e74c3c; background: #e74c3c; color: white; }
+.fac-row {
+  display: flex; gap: 6px; align-items: center; margin-bottom: 6px;
+}
+.fac-label { font-size: 12px; color: #666; font-weight: 600; min-width: 50px; }
+.fac-input {
+  flex: 1; padding: 7px 8px; border: 1px solid #ddd; border-radius: 6px;
+  font-size: 14px; background: white;
+}
+.fac-input:focus { border-color: #2980b9; outline: none; }
+.fac-unit { font-size: 13px; color: #666; font-weight: 600; }
+.fac-types { display: flex; gap: 4px; flex-wrap: wrap; }
+.fac-type-btn {
+  padding: 5px 12px; border: 1.5px solid #ddd; border-radius: 16px;
+  font-size: 12px; font-weight: 700; background: white; cursor: pointer;
+}
+.fac-type-btn.on { border-color: #1a5276; background: #1a5276; color: white; }
+.road-doc-checks { margin-top: 8px; padding-top: 8px; border-top: 1px solid #e8e8e8; }
+
+.share-btn {
+  display: block; width: calc(100% - 16px); margin: 0 8px 8px;
+  padding: 13px; background: #25d366; color: white;
+  border: none; border-radius: 10px; font-size: 15px; font-weight: 700;
+  cursor: pointer;
+}
+.share-btn:active { opacity: 0.8; }
+.del-btn {
+  display: block; width: calc(100% - 16px); margin: 0 8px 16px;
+  padding: 12px; background: #fff0f0; color: #c0392b;
+  border: 1px solid #e74c3c; border-radius: 10px;
+  font-size: 13px; font-weight: 600; cursor: pointer;
+}
+
+@media (min-width: 500px) { body { max-width: 500px; margin: 0 auto; } }
+</style>
+</head>
+<body>
+
+<!-- ========== 一覧画面 ========== -->
+<div id="pageList" class="page active">
+  <div class="header"><h1>案件管理</h1></div>
+  <div class="search-bar">
+    <div class="search-wrap">
+      <span class="search-icon">🔍</span>
+      <input class="search-input" id="searchInput" type="text" placeholder="物件名・所在地・買主で検索" oninput="onSearch()">
+      <button class="search-clear" id="searchClear" onclick="clearSearch()">✕</button>
+    </div>
+    <div class="search-count" id="searchCount"></div>
+  </div>
+  <div class="deal-list" id="dealList"></div>
+  <button class="fab" onclick="openNew()">＋</button>
+</div>
+
+<!-- ========== 詳細画面 ========== -->
+<div id="pageDetail" class="page">
+  <div class="detail-header" id="dHeader">
+    <div class="back" onclick="goList()">← 物件一覧</div>
+    <div id="dHeaderContent"></div>
+  </div>
+  <div class="detail-body" id="dBody"></div>
+</div>
+
+<!-- ========== 新規モーダル ========== -->
+<div class="modal-bg" id="modal">
+  <div class="modal">
+    <h2>新規案件</h2>
+
+    <div class="field">
+      <label>種別</label>
+      <div class="type-select" id="typeSelect">
+        <div class="type-btn" data-v="used_house" onclick="pickType(this)">中古戸建</div>
+        <div class="type-btn" data-v="new_house" onclick="pickType(this)">新築戸建</div>
+        <div class="type-btn" data-v="mansion" onclick="pickType(this)">マンション</div>
+        <div class="type-btn" data-v="land" onclick="pickType(this)">土地</div>
+      </div>
+    </div>
+
+    <div class="field">
+      <label>所在地</label>
+      <div style="display:flex;gap:6px;margin-bottom:6px;">
+        <select id="inPref" onchange="onPrefChange()" style="flex:1;padding:10px 8px;border:1px solid #ddd;border-radius:8px;font-size:15px;background:white;-webkit-appearance:none;">
+          <option value="">都県</option>
+        </select>
+        <select id="inCity" style="flex:1.5;padding:10px 8px;border:1px solid #ddd;border-radius:8px;font-size:15px;background:white;-webkit-appearance:none;">
+          <option value="">市区町村</option>
+        </select>
+      </div>
+      <input type="text" id="inTown" placeholder="町名・番地（例: 南町3丁目）">
+    </div>
+
+    <div class="field">
+      <label>売主様</label>
+      <input type="text" id="inSeller" placeholder="例: 山田様">
+    </div>
+
+    <div class="field">
+      <label>買主様</label>
+      <input type="text" id="inBuyer" placeholder="例: 田中様">
+    </div>
+
+    <div class="field">
+      <label>価格（万円）</label>
+      <input type="text" id="inPrice" inputmode="numeric" placeholder="例: 4980">
+    </div>
+
+    <div class="btn-row">
+      <button class="btn btn-cancel" onclick="closeNew()">やめる</button>
+      <button class="btn btn-ok" onclick="createDeal()">作成</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ====== チェック項目定義 ======
+const SECTIONS = {
+  investigation: {
+    label: "調査",
+    groups: [
+      { title: "登記", items: [
+        { id:"toki_land", l:"土地謄本" },
+        { id:"toki_bld", l:"建物謄本" },
+        { id:"kouzu", l:"公図" },
+        { id:"chiseki", l:"地積測量図" },
+        { id:"bld_zumen", l:"建物図面" },
+      ]},
+      { title: "建物", notFor:"land", items: [
+        { id:"gaiyou", l:"建築概要書" },
+        { id:"daichou", l:"台帳記載事項証明書" },
+        { id:"kenchiku_kakunin", l:"検査済証の有無" },
+      ]},
+      { title: "道路", special: "road" },
+      { title: "埋設管", items: [
+        { id:"josui", l:"上水道（口径・引込位置）" },
+        { id:"gesui", l:"下水道（汚水・雨水）" },
+        { id:"gas_toshi", l:"ガス（都市ガス/プロパン）", hasText:true, placeholder:"会社名（プロパンの場合：リース契約の有無も）" },
+        { id:"joukasou", l:"浄化槽の有無", hasText:true, placeholder:"会社名" },
+      ]},
+      { title: "法令", items: [
+        { id:"toshi_keikaku_zu", l:"都市計画図の取得", s:"都市計画図を取得し、下記が確認できるかチェック", alert:true },
+        { id:"toshi_keikaku_douro", l:"都市計画道路の有無", s:"都市計画道路は200m以内のものとする", alert:true, indent:true },
+        { id:"toshi_keikaku_shisetsu", l:"都市計画施設の有無", indent:true },
+        { id:"youto", l:"用途地域・建ぺい率・容積率", indent:true },
+        { id:"bouka", l:"防火・準防火", indent:true },
+        { id:"koudo", l:"高度地区", indent:true },
+        { id:"chiku_keikaku", l:"地区計画", indent:true },
+        { id:"saitei_shikichi", l:"最低敷地面積", indent:true },
+        { id:"maizou", l:"埋蔵文化財", indent:true },
+        { id:"jourei", l:"条例（がけ地・緑化等）", indent:true },
+      ]},
+      { title: "ハザード", items: [
+        { id:"hazard_map", l:"ハザードマップ" },
+      ]},
+      { title: "現地", items: [
+        { id:"kyoukai", l:"境界標・越境" },
+        { id:"koutei", l:"高低差・擁壁", s:"擁壁の建確の有無を確認！", alert:true },
+        { id:"shuuhen", l:"周辺環境・嫌悪施設" },
+      ]},
+      { title: "マンション｜書類取得", cond:"mansion", items: [
+        { id:"juchou", l:"重要事項調査報告書の取得", alert:true, s:"管理会社から取得" },
+        { id:"kanri_kiyaku", l:"管理規約・使用細則の取得" },
+        { id:"chouki_shuuzen", l:"長期修繕計画書の有無" },
+      ]},
+      { title: "マンション｜ヒアリング", cond:"mansion", special:"ms_hearing" },
+    ]
+  },
+  documents: {
+    label: "書類",
+    groups: [
+      { title: "契約前", items: [
+        { id:"bukken_j", l:"物件状況報告書" },
+        { id:"futai", l:"付帯設備表" },
+        { id:"hyouka", l:"評価証明書" },
+        { id:"kouka", l:"公課証明書" },
+      ]},
+    ]
+  }
+};
+
+const TYPE_LABELS = {
+  used_house: "中古戸建", new_house: "新築戸建",
+  mansion: "マンション", land: "土地"
+};
+
+// ====== ストレージ ======
+const load = () => { try { return JSON.parse(localStorage.getItem('dt2')||'[]'); } catch { return []; } };
+const save = d => localStorage.setItem('dt2', JSON.stringify(d));
+
+// ====== 進捗計算 ======
+function calcPct(deal) {
+  let t=0, d=0;
+  Object.values(SECTIONS).forEach(cat => {
+    cat.groups.forEach(g => {
+      if (g.cond && g.cond !== deal.type) return;
+      if (g.notFor && g.notFor === deal.type) return;
+      if (g.special) return;
+      g.items.forEach(i => { t++; if((deal.ck||{})[i.id]) d++; });
+    });
+  });
+  return t ? Math.round(d/t*100) : 0;
+}
+
+// ====== 価格フォーマット ======
+function fmtPrice(v) {
+  if(!v) return '';
+  const n = parseInt(v);
+  if(isNaN(n)) return v + '万円';
+  if(n >= 10000) return (n/10000).toFixed(n%10000?1:0) + '億円';
+  return n.toLocaleString() + '万円';
+}
+
+// ====== 検索 ======
+let searchQuery = '';
+function onSearch() {
+  searchQuery = document.getElementById('searchInput').value.trim();
+  document.getElementById('searchClear').classList.toggle('show', !!searchQuery);
+  renderList();
+}
+function clearSearch() {
+  document.getElementById('searchInput').value = '';
+  searchQuery = '';
+  document.getElementById('searchClear').classList.remove('show');
+  document.getElementById('searchCount').textContent = '';
+  renderList();
+}
+
+// ====== 一覧 ======
+function renderList() {
+  let deals = load();
+  const el = document.getElementById('dealList');
+  const countEl = document.getElementById('searchCount');
+  if (!deals.length) { el.innerHTML = '<div class="empty-msg">案件なし<br>＋で追加</div>'; countEl.textContent=''; return; }
+
+  // 検索フィルタ
+  let filtered = deals;
+  if (searchQuery) {
+    const q = searchQuery.toLowerCase();
+    filtered = deals.filter(d => {
+      const text = [d.pref||'', d.loc||'', d.buyer||'', d.seller||'', TYPE_LABELS[d.type]||'', d.price||''].join(' ').toLowerCase();
+      return text.includes(q);
+    });
+    countEl.textContent = filtered.length + '件 / ' + deals.length + '件中';
+  } else {
+    countEl.textContent = '';
+  }
+
+  if (!filtered.length) { el.innerHTML = '<div class="empty-msg">該当する案件がありません</div>'; return; }
+
+  el.innerHTML = filtered.map(d => {
+    const pct = calcPct(d);
+    const cls = pct<40?'pct-low':pct<80?'pct-mid':'pct-high';
+    const priceStr = fmtPrice(d.price);
+    return `<div class="deal-card" onclick="goDetail('${d.id}')">
+      <div class="deal-type-badge type-${d.type}">${TYPE_LABELS[d.type]}</div>
+      <div class="deal-body">
+        ${d.pref?'<div class="deal-pref">'+esc(d.pref)+'</div>':''}
+        <div class="deal-location">${esc(d.loc)}</div>
+        ${priceStr?'<div class="deal-price">'+esc(priceStr)+'</div>':''}
+        <div class="deal-people">
+          ${d.seller?'<span>売主: '+esc(d.seller)+'</span>':''}
+          ${d.buyer?'<span>買主: '+esc(d.buyer)+'</span>':''}
+        </div>
+        <div class="deal-progress-mini">
+          <div class="mini-bar"><div class="mini-fill ${cls}" style="width:${pct}%"></div></div>
+          <div class="mini-text">${pct}%</div>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ====== 詳細 ======
+let curId = null;
+let editOpen = false;
+
+function renderHeader(d) {
+  const priceStr = fmtPrice(d.price);
+  let hdr = `<button class="d-edit-btn" onclick="toggleEdit()">✏️ 編集</button>`;
+  hdr += `<div class="d-type-badge">${TYPE_LABELS[d.type]}</div>`;
+  if(d.pref) hdr += `<div class="d-pref">${esc(d.pref)}</div>`;
+  hdr += `<div class="title">${esc(d.loc)}</div>`;
+  if(priceStr) hdr += `<div class="d-price">${esc(priceStr)}</div>`;
+  hdr += `<div class="d-people">`;
+  if(d.seller) hdr += `<span>売主: ${esc(d.seller)}</span>`;
+  if(d.buyer) hdr += `<span>買主: ${esc(d.buyer)}</span>`;
+  hdr += `</div>`;
+  document.getElementById('dHeaderContent').innerHTML = hdr;
+}
+
+function goDetail(id) {
+  curId = id;
+  editOpen = false;
+  const d = load().find(x=>x.id===id); if(!d) return;
+  renderHeader(d);
+  renderDetail(d);
+  show('pageDetail');
+}
+
+function toggleEdit() {
+  editOpen = !editOpen;
+  const d = load().find(x=>x.id===curId); if(!d) return;
+  renderKeepScroll(d);
+}
+
+function renderEditPanel(d) {
+  if(!editOpen) return '';
+  let h = `<div class="edit-panel"><div class="edit-panel-inner">`;
+  h += `<div class="edit-panel-title">案件情報の編集<button class="status-panel-close" onclick="toggleEdit()">閉じる</button></div>`;
+
+  // 種別
+  h += `<div class="edit-field"><label>種別</label><div style="display:flex;gap:6px;">`;
+  Object.entries(TYPE_LABELS).forEach(([k,v]) => {
+    const sel = d.type===k ? 'border-color:#1a5276;background:#eaf2f8;color:#1a5276;font-weight:700;' : '';
+    h += `<button style="flex:1;padding:8px;border:1.5px solid #ddd;border-radius:8px;font-size:13px;font-weight:600;background:white;cursor:pointer;${sel}" onclick="editDeal('type','${k}')">${v}</button>`;
+  });
+  h += `</div></div>`;
+
+  // 価格
+  h += `<div class="edit-field"><label>価格（万円）</label>
+    <input type="text" inputmode="numeric" value="${esc(d.price||'')}" placeholder="例: 4980" onchange="editDeal('price',this.value)">
+  </div>`;
+
+  // 売主・買主
+  h += `<div class="edit-row">
+    <div class="edit-field"><label>売主様</label>
+      <input type="text" value="${esc(d.seller||'')}" placeholder="例: 山田様" onchange="editDeal('seller',this.value)">
+    </div>
+    <div class="edit-field"><label>買主様</label>
+      <input type="text" value="${esc(d.buyer||'')}" placeholder="例: 田中様" onchange="editDeal('buyer',this.value)">
+    </div>
+  </div>`;
+
+  // 所在地
+  h += `<div class="edit-field"><label>所在地</label>
+    <input type="text" value="${esc(d.loc||'')}" placeholder="例: 国分寺市南町3丁目" onchange="editDeal('loc',this.value)">
+  </div>`;
+
+  h += `</div></div>`;
+  return h;
+}
+
+function editDeal(key, val) {
+  const deals=load();const d=deals.find(x=>x.id===curId);if(!d)return;
+  d[key]=val;
+  save(deals);
+  renderHeader(d);
+  if(key==='type') renderKeepScroll(d);
+}
+function goList() { curId=null; renderList(); show('pageList'); }
+
+// ヒアリング項目定義
+const MS_HEARING = [
+  { id:"msh_kanri_keitai", q:"管理形態", type:"choice", opts:["全部委託","一部委託","自主管理"] },
+  { id:"msh_kanri_gaisha", q:"管理会社名", type:"text", ph:"例: 伏見管理サービス" },
+  { id:"msh_kanri_tel", q:"管理会社 TEL", type:"tel", ph:"例: 042-649-6375", im:"tel" },
+  { id:"msh_kanrihi", q:"管理費（月額）", type:"text", ph:"例: 9616", im:"numeric", unit:"円" },
+  { id:"msh_shuuzenhi", q:"修繕積立金（月額）", type:"text", ph:"例: 8360", im:"numeric", unit:"円" },
+  { id:"msh_neage", q:"値上げ予定", type:"choice", opts:["なし","あり（時期未定）","あり"], sub:"msh_neage_detail", subPh:"時期・金額" },
+  { id:"msh_tainou", q:"滞納の有無", type:"choice", opts:["なし","あり"], sub:"msh_tainou_detail", subPh:"金額・件数" },
+  { id:"msh_shuuzen_zanko", q:"修繕積立金 残高", type:"text", ph:"例: 165766775", im:"numeric", unit:"円" },
+  { id:"msh_daikibo", q:"大規模修繕 実施履歴", type:"choice", opts:["あり","なし","不明"], sub:"msh_daikibo_detail", subPh:"前回時期（例: 2020年）" },
+  { id:"msh_daikibo_next", q:"大規模修繕 次回予定", type:"choice", opts:["あり","なし","未定"], sub:"msh_daikibo_next_detail", subPh:"予定時期（例: 2030年）" },
+  { id:"msh_chouki", q:"長期修繕計画書", type:"choice", opts:["あり","なし"] },
+  { id:"msh_parking", q:"駐車場・駐輪場・バイク置場", type:"facility" },
+  { id:"msh_pet", q:"ペット飼育", type:"choice", opts:["可","不可","条件付き可"], sub:"msh_pet_detail", subPh:"条件の詳細" },
+  { id:"msh_jichihai", q:"自治会費・町内会費", type:"choice", opts:["あり","なし"], sub:"msh_jichihai_detail", subPh:"月額", im:"numeric", unit:"円" },
+  { id:"msh_catv", q:"TV・ネット（CATV等）", type:"choice", opts:["CATV","光回線","J:COM","その他","なし"], sub:"msh_catv_detail", subPh:"会社名・月額" },
+  { id:"msh_biko", q:"その他備考", type:"textarea", ph:"特記事項があれば" },
+];
+
+function renderHearing(d) {
+  if(!d.hear) d.hear={};
+  const filled = MS_HEARING.filter(q=>d.hear[q.id]).length;
+  const total = MS_HEARING.length;
+  const isOpen = isSecOpen('マンション｜ヒアリング');
+
+  let h = '<div class="section">';
+  h += '<div class="sec-head" data-idx="マンション｜ヒアリング" onclick="toggle(this)">マンション｜ヒアリング';
+  h += '<span style="font-size:11px;color:'+(filled===total?'#27ae60':'#e65100')+';font-weight:700;margin-left:6px;">'+filled+'/'+total+'</span>';
+  h += '</div>';
+  h += '<div class="sec-body" style="'+(isOpen?'':'display:none;')+'">';
+  h += '<div style="font-size:13px;color:#c0392b;font-weight:700;padding:6px 0 10px;border-bottom:1px solid #f0f0f0;">管理会社に確認しながら入力</div>';
+  h += '<div class="hear-form">';
+
+  let num=0;
+  MS_HEARING.forEach((q,idx)=>{
+    // 条件付き表示
+    if(q.showIf && d.hear[q.showIf]!==q.showVal) return;
+    num++;
+    const val = d.hear[q.id]||'';
+    const hasFill = !!val;
+    h += '<div class="hear-q '+(hasFill?'hear-filled':'')+'">';
+    h += '<div class="hear-label"><span class="hear-num">'+num+'</span>'+esc(q.q)+'</div>';
+
+    if(q.type==='facility') {
+      h += renderFacilities(d);
+      h += '</div>';
+      return;
+    }
+    if(q.type==='choice') {
+      h += '<div class="hear-select">';
+      q.opts.forEach(o=>{
+        h += '<div class="hear-opt '+(val===o?'on':'')+'" onclick="setHear(\''+q.id+'\',\''+o+'\',this)">'+esc(o)+'</div>';
+      });
+      h += '</div>';
+      // サブ入力（「あり」系を選んだ時）
+      if(q.sub && val && val!=='なし' && val!=='不可') {
+        const subVal = d.hear[q.sub]||'';
+        h += '<div style="display:flex;align-items:center;gap:6px;margin-top:6px;">';
+        h += '<input class="hear-input" type="text" '+(q.im?'inputmode="'+q.im+'"':'')+' placeholder="'+esc(q.subPh||'')+'" value="'+esc(subVal)+'" onchange="setHearVal(\''+q.sub+'\',this.value)">';
+        if(q.unit) h += '<span style="font-size:15px;font-weight:700;color:#666;flex-shrink:0;">'+esc(q.unit)+'</span>';
+        h += '</div>';
+      }
+    } else if(q.type==='textarea') {
+      h += '<textarea class="hear-input" style="min-height:50px;resize:vertical;" placeholder="'+esc(q.ph||'')+'" onchange="setHearVal(\''+q.id+'\',this.value)">'+esc(val)+'</textarea>';
+    } else {
+      h += '<div style="display:flex;align-items:center;gap:6px;">';
+      h += '<input class="hear-input" type="'+(q.type||'text')+'" '+(q.im?'inputmode="'+q.im+'"':'')+' placeholder="'+esc(q.ph||'')+'" value="'+esc(val)+'" onchange="setHearVal(\''+q.id+'\',this.value)">';
+      if(q.unit) h += '<span style="font-size:15px;font-weight:700;color:#666;flex-shrink:0;">'+esc(q.unit)+'</span>';
+      h += '</div>';
+    }
+    h += '</div>';
+  });
+
+  h += '</div></div></div>';
+  return h;
+}
+
+const FACILITIES = [
+  { key:"park", name:"駐車場", types:["機械式","平置","自走式","タワー"], multiType:true },
+  { key:"cycle", name:"駐輪場", types:null, multiType:false },
+  { key:"bike", name:"バイク置場", types:null, multiType:false },
+];
+
+function renderFacilities(d) {
+  if(!d.fac) d.fac={};
+  let h = '';
+  FACILITIES.forEach(f => {
+    const data = d.fac[f.key] || {};
+    const exists = data.exists;
+    const isNone = exists === 'なし';
+    h += '<div class="fac-card '+(isNone?'fac-none':'')+'">';
+    h += '<div class="fac-title">'+esc(f.name)+'<div class="fac-toggle">';
+    h += '<button class="'+(exists==='あり'?'on-yes':'')+'" onclick="setFac(\''+f.key+'\',\'exists\',\'あり\')">あり</button>';
+    h += '<button class="'+(exists==='なし'?'on-no':'')+'" onclick="setFac(\''+f.key+'\',\'exists\',\'なし\')">なし</button>';
+    h += '</div></div>';
+
+    if(exists==='あり') {
+      if(f.multiType && f.types) {
+        // 駐車場: 種類を複数選択可、種類ごとに金額
+        const selTypes = data.types || [];
+        h += '<div class="fac-row"><span class="fac-label">種類</span><div class="fac-types">';
+        f.types.forEach(t => {
+          const isOn = selTypes.includes(t);
+          h += '<div class="fac-type-btn '+(isOn?'on':'')+'" onclick="toggleFacType(\''+f.key+'\',\''+t+'\')">'+t+'</div>';
+        });
+        h += '</div></div>';
+        if(selTypes.length > 0) {
+          // 選択された種類ごとに金額入力
+          if(!data.prices) data.prices={};
+          selTypes.forEach(t => {
+            const p = data.prices[t] || '';
+            h += '<div class="fac-row" style="margin-left:12px;"><span class="fac-label" style="min-width:60px;">'+esc(t)+'</span>';
+            h += '<input class="fac-input" inputmode="numeric" placeholder="月額" value="'+esc(p)+'" onchange="setFacPrice(\''+f.key+'\',\''+t+'\',this.value)" style="text-align:right;">';
+            h += '<span class="fac-unit">円</span></div>';
+          });
+        } else {
+          // 種類未選択時: シンプルな金額レンジ
+          h += '<div class="fac-row"><span class="fac-label">月額</span>';
+          h += '<input class="fac-input" inputmode="numeric" placeholder="下限" value="'+(data.fee_min||'')+'" onchange="setFac(\''+f.key+'\',\'fee_min\',this.value)" style="text-align:right;">';
+          h += '<span class="fac-unit">〜</span>';
+          h += '<input class="fac-input" inputmode="numeric" placeholder="上限" value="'+(data.fee_max||'')+'" onchange="setFac(\''+f.key+'\',\'fee_max\',this.value)" style="text-align:right;">';
+          h += '<span class="fac-unit">円</span></div>';
+        }
+      } else {
+        // 駐輪場・バイク: レンジ金額
+        h += '<div class="fac-row"><span class="fac-label">月額</span>';
+        h += '<input class="fac-input" inputmode="numeric" placeholder="下限" value="'+(data.fee_min||'')+'" onchange="setFac(\''+f.key+'\',\'fee_min\',this.value)" style="text-align:right;">';
+        h += '<span class="fac-unit">〜</span>';
+        h += '<input class="fac-input" inputmode="numeric" placeholder="上限" value="'+(data.fee_max||'')+'" onchange="setFac(\''+f.key+'\',\'fee_max\',this.value)" style="text-align:right;">';
+        h += '<span class="fac-unit">円</span></div>';
+      }
+
+      // 空き
+      h += '<div class="fac-row"><span class="fac-label">空き</span><div class="fac-toggle">';
+      h += '<button class="'+(data.vacancy==='あり'?'on-yes':'')+'" onclick="setFac(\''+f.key+'\',\'vacancy\',\'あり\')">あり</button>';
+      h += '<button class="'+(data.vacancy==='なし'?'on-no':'')+'" onclick="setFac(\''+f.key+'\',\'vacancy\',\'なし\')">なし</button>';
+      h += '</div>';
+      if(data.vacancy==='あり') {
+        h += '<input class="fac-input" inputmode="numeric" placeholder="台数" value="'+(data.vacancy_num||'')+'" onchange="setFac(\''+f.key+'\',\'vacancy_num\',this.value)" style="width:60px;text-align:right;margin-left:6px;">';
+        h += '<span class="fac-unit">台</span>';
+      }
+      h += '</div>';
+
+      // 備考
+      h += '<div class="fac-row"><span class="fac-label">備考</span>';
+      h += '<input class="fac-input" placeholder="その他メモ" value="'+(data.note||'')+'" onchange="setFac(\''+f.key+'\',\'note\',this.value)">';
+      h += '</div>';
+    }
+    h += '</div>';
+  });
+  return h;
+}
+
+function setFac(key, prop, val) {
+  const deals=load();const d=deals.find(x=>x.id===curId);if(!d)return;
+  if(!d.fac) d.fac={};
+  if(!d.fac[key]) d.fac[key]={};
+  d.fac[key][prop]=val;
+  save(deals);renderKeepScroll(d);
+}
+function toggleFacType(key, type) {
+  const deals=load();const d=deals.find(x=>x.id===curId);if(!d)return;
+  if(!d.fac) d.fac={};
+  if(!d.fac[key]) d.fac[key]={};
+  if(!d.fac[key].types) d.fac[key].types=[];
+  const arr=d.fac[key].types;
+  const idx=arr.indexOf(type);
+  if(idx>=0) arr.splice(idx,1); else arr.push(type);
+  save(deals);renderKeepScroll(d);
+}
+function setFacPrice(key, type, val) {
+  const deals=load();const d=deals.find(x=>x.id===curId);if(!d)return;
+  if(!d.fac) d.fac={};
+  if(!d.fac[key]) d.fac[key]={};
+  if(!d.fac[key].prices) d.fac[key].prices={};
+  d.fac[key].prices[type]=val;
+  save(deals);
+}
+
+function setHear(id, val, el) {
+  const deals=load();const d=deals.find(x=>x.id===curId);if(!d)return;
+  if(!d.hear)d.hear={};
+  d.hear[id]=val;
+  save(deals);renderKeepScroll(d);
+}
+function setHearVal(id, val) {
+  const deals=load();const d=deals.find(x=>x.id===curId);if(!d)return;
+  if(!d.hear)d.hear={};
+  d.hear[id]=val;
+  save(deals);
+}
+
+// 道路種別
+const ROAD_TYPES = [
+  {v:"1-1",l:"ア. 1項1号（道路法）"},
+  {v:"1-2",l:"イ. 1項2号（開発道路）"},
+  {v:"1-3",l:"ウ. 1項3号（既存道路）"},
+  {v:"1-4",l:"エ. 1項4号（計画道路）"},
+  {v:"1-5",l:"オ. 1項5号（位置指定）"},
+  {v:"2",  l:"カ. 2項道路"},
+  {v:"non",l:"キ. 42条非該当"},
+  {v:"etc",l:"ク. その他"},
+];
+const DIRS = ["北","北東","東","南東","南","南西","西","北西"];
+
+const ROAD_DOCS = [];
+
+function renderRoadSection(d) {
+  if(!d.roads||!d.roads.length){
+    d.roads=[{dir:'',pub:'公道',type:'',width:'',front:''}];
+    const deals=load();const dd=deals.find(x=>x.id===d.id);
+    if(dd){dd.roads=d.roads;save(deals);}
+  }
+  const roads = d.roads;
+  // 道路セクション内の要取得数
+  let roadReqCount = 0;
+  roads.forEach((r,ri)=>{
+    ['chk_type','chk_width','chk_front'].forEach(k=>{
+      if((d.req||{})['rd_'+ri+'_'+k]&&!(d.ck||{})['rd_'+ri+'_'+k]) roadReqCount++;
+    });
+  });
+  const roadOpen = isSecOpen('道路');
+  let h = '<div class="section"><div class="sec-head" data-idx="道路" onclick="toggle(this)">道路'+(roadReqCount?'<span style="font-size:11px;color:#c0392b;font-weight:700;margin-left:6px;">⚠️'+roadReqCount+'件</span>':'')+'<span class="badge badge-todo">'+roads.length+'本</span></div><div class="sec-body" style="'+(roadOpen?'':'display:none;')+'">';
+  roads.forEach((r,i)=>{
+    // 調査チェック項目（接道ごと）
+    const checks = [
+      {k:"chk_type", l:"道路種別を確認"},
+      {k:"chk_width", l:"幅員を確認"},
+      {k:"chk_front", l:"間口（接道長さ）を確認"},
+    ];
+    h += `<div class="road-card">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+        <b style="font-size:13px;">接道${i+1}</b>
+        <button class="road-del" onclick="delRoad(${i})">削除</button>
+      </div>
+      <div class="road-row">
+        <select onchange="updRoad(${i},'dir',this.value)">
+          <option value="">方向</option>
+          ${DIRS.map(x=>'<option value="'+x+'" '+(r.dir===x?'selected':'')+'>'+x+'側</option>').join('')}
+        </select>
+        <select onchange="updRoad(${i},'pub',this.value)">
+          <option value="公道" ${r.pub==='公道'||!r.pub?'selected':''}>公道</option>
+          <option value="私道" ${r.pub==='私道'?'selected':''}>私道</option>
+        </select>
+      </div>
+      <div class="road-row">
+        <select style="flex:1;" onchange="updRoad(${i},'type',this.value)">
+          <option value="">道路種別</option>
+          ${ROAD_TYPES.map(x=>'<option value="'+x.v+'" '+(r.type===x.v?'selected':'')+'>'+x.l+'</option>').join('')}
+        </select>
+      </div>
+      <div class="road-row">
+        <input class="road-num" type="number" step="0.01" placeholder="幅員" value="${r.width||''}" onchange="updRoad(${i},'width',this.value)">
+        <span class="road-unit">m</span>
+        <input class="road-num" type="number" step="0.01" placeholder="接道長" value="${r.front||''}" onchange="updRoad(${i},'front',this.value)">
+        <span class="road-unit">m</span>
+      </div>
+      <div style="margin-top:6px;padding-top:6px;border-top:1px solid #eee;">
+        ${checks.map(c=>{
+          const cid='rd_'+i+'_'+c.k;
+          const chk=(d.ck||{})[cid];
+          const creq=(d.req||{})[cid];
+          return '<div class="item '+(chk?'done':'')+'" style="padding:5px 0;"><input type="checkbox" style="width:18px;height:18px;" '+(chk?'checked':'')+' onchange="ck(\''+cid+'\',this.checked)"><div class="item-label" style="font-size:13px;flex:1;">'+esc(c.l)+'</div><button class="req-btn '+(creq?'on':'')+'" onclick="toggleReq(\''+cid+'\')">'+(creq?'⚠️ 要取得':'＋ 取得指示')+'</button></div>';
+        }).join('')}
+      </div>
+      ${renderRoadExtra(d,r,i)}
+    </div>`;
+  });
+  h += '<button class="road-add-btn" onclick="addRoad()">＋ 接道を追加</button>';
+  h += '</div></div>';
+  return h;
+}
+// 道路種別ごとの追加確認項目
+const ROAD_EXTRA = {
+  "2": [
+    {id:"sb_umu",l:"要セットバック",showNext:true},
+    {id:"sb_menseki",l:"セットバック面積",hasInput:true,unit:"㎡",needsPrev:"sb_umu"},
+    {id:"sb_shinsei",l:"狭あい協議申請の要否"},
+  ],
+  "1-5": [
+    {id:"ichi_zu",l:"位置指定図の取得",alert:true},
+    {id:"ichi_shitei_ban",l:"指定番号・年月日"},
+    {id:"shido_menseki",l:"私道面積の確認"},
+    {id:"shido_mochibun",l:"私道持分の確認"},
+    {id:"shido_tsukouken",l:"通行掘削承諾の有無"},
+  ],
+  "non": [
+    {id:"saiken_fuka",l:"再建築不可の確認"},
+    {id:"kyoka43",l:"43条許可・認定の可否"},
+  ],
+};
+// 私道の場合の追加項目
+const SHIDO_EXTRA = [
+  {id:"shido_menseki_p",l:"私道面積の確認"},
+  {id:"shido_mochibun_p",l:"私道持分の確認"},
+  {id:"shido_tsukouken_p",l:"通行掘削承諾の有無"},
+  {id:"shido_kanri",l:"私道の維持管理・費用負担"},
+];
+
+function renderRoadExtra(d,r,i) {
+  let extras = [];
+  // 道路種別による追加
+  if(r.type && ROAD_EXTRA[r.type]) {
+    extras = extras.concat(ROAD_EXTRA[r.type].map(e=>({...e, id:e.id+'_'+i})));
+  }
+  // 私道の場合（位置指定以外で私道選択時）
+  if(r.pub==='私道' && r.type!=='1-5') {
+    extras = extras.concat(SHIDO_EXTRA.map(e=>({...e, id:e.id+'_'+i})));
+  }
+  if(!extras.length) return '';
+
+  let h = '<div style="margin-top:6px;padding-top:6px;border-top:1px dashed #ccc;">';
+  h += '<div style="font-size:11px;color:#e65100;font-weight:700;margin-bottom:4px;">追加確認</div>';
+  extras.forEach(e=>{
+    if(e.needsPrev && !(d.ck||{})[e.needsPrev+'_'+i]) return;
+    const chk=(d.ck||{})[e.id];
+    const val=(d.vals||{})[e.id]||'';
+    const ereq=(d.req||{})[e.id];
+    h += `<div class="item ${chk?'done':''}" style="padding:6px 0;">
+      <input type="checkbox" style="width:18px;height:18px;" ${chk?'checked':''} onchange="ck('${e.id}',this.checked)">
+      <div style="flex:1;"><div class="item-label" style="font-size:13px;${e.alert?'color:#c0392b;font-weight:700;':''}">${e.alert?'⚠ ':''}${esc(e.l)}</div></div>
+      ${e.hasInput?'<div style="display:flex;align-items:center;gap:3px;"><input type="number" step="0.01" style="width:70px;padding:4px 6px;border:1px solid #ddd;border-radius:6px;font-size:13px;text-align:right;" value="'+val+'" onchange="saveVal(\''+e.id+'\',this.value)"><span style="font-size:12px;color:#666;">'+e.unit+'</span></div>':''}
+      <button class="req-btn ${ereq?'on':''}" onclick="toggleReq('${e.id}')">${ereq?'⚠️ 要取得':'＋ 取得指示'}</button>
+    </div>`;
+  });
+  h += '</div>';
+  return h;
+}
+
+function toggleReq(itemId){
+  const deals=load();const d=deals.find(x=>x.id===curId);if(!d)return;
+  if(!d.req)d.req={};
+  d.req[itemId]=!d.req[itemId];
+  save(deals);renderKeepScroll(d);
+}
+
+function saveVal(key,v){
+  const deals=load();const d=deals.find(x=>x.id===curId);if(!d)return;
+  if(!d.vals)d.vals={};
+  d.vals[key]=v;save(deals);
+}
+
+function addRoad(){
+  const deals=load();const d=deals.find(x=>x.id===curId);if(!d)return;
+  if(!d.roads)d.roads=[];
+  d.roads.push({dir:'',pub:'',type:'',width:'',front:''});
+  save(deals);renderKeepScroll(d);
+}
+function delRoad(i){
+  const deals=load();const d=deals.find(x=>x.id===curId);if(!d||!d.roads)return;
+  d.roads.splice(i,1);save(deals);renderKeepScroll(d);
+}
+function updRoad(i,k,v){
+  const deals=load();const d=deals.find(x=>x.id===curId);if(!d||!d.roads)return;
+  d.roads[i][k]=v;save(deals);
+  if(k==='type'||k==='pub') renderDetail(d);
+}
+
+// ステータス項目定義
+const STATUS_ITEMS = [
+  { key:'dates', label:'契約日・決済日', icon:'📅', type:'dates' },
+  { key:'defect', label:'契約不適合', icon:'⚖️', type:'choice', opts:[
+    {v:'あり',l:'あり',c:'s-yes'},{v:'なし',l:'なし（免責）',c:'s-no'}
+  ]},
+];
+
+let openStatusKey = null;
+
+function dateDiffText(dateStr) {
+  if(!dateStr) return '';
+  const diff = Math.ceil((new Date(dateStr) - new Date().setHours(0,0,0,0)) / 86400000);
+  if(diff < 0) return `<span class="status-days" style="color:#c62828;">${Math.abs(diff)}日超過</span>`;
+  if(diff === 0) return `<span class="status-days" style="color:#e65100;">本日</span>`;
+  if(diff <= 7) return `<span class="status-days" style="color:#e65100;">あと${diff}日</span>`;
+  return `<span class="status-days" style="color:#888;">あと${diff}日</span>`;
+}
+
+function fmtDate(dateStr) {
+  if(!dateStr) return '';
+  const d = new Date(dateStr);
+  return (d.getMonth()+1)+'/'+d.getDate();
+}
+
+function chipClass(d, item) {
+  const s = d.status||{};
+  if(item.type==='dates') {
+    if(s.contract_date || s.settlement_date) {
+      // 期限チェック
+      const dates = [s.contract_date, s.settlement_date].filter(Boolean);
+      const today = new Date().setHours(0,0,0,0);
+      const hasAlert = dates.some(dt => new Date(dt) < today);
+      const hasWarn = dates.some(dt => { const diff = Math.ceil((new Date(dt)-today)/86400000); return diff>=0 && diff<=7; });
+      if(hasAlert) return 'alert';
+      if(hasWarn) return 'warn';
+      return 'filled';
+    }
+    return '';
+  }
+  if(item.type==='choice') return s[item.key] ? 'filled' : '';
+  if(item.type==='toggle') return s[item.key]==='済' ? 'filled' : s[item.key]==='未' ? 'warn' : '';
+  return '';
+}
+
+function chipSummary(d, item) {
+  const s = d.status||{};
+  if(item.type==='dates') {
+    const parts=[];
+    if(s.contract_date) parts.push('契約'+fmtDate(s.contract_date));
+    if(s.settlement_date) parts.push('決済'+fmtDate(s.settlement_date));
+    return parts.length ? parts.join(' / ') : '';
+  }
+  if(item.type==='choice') return s[item.key]||'';
+  if(item.type==='toggle') return s[item.key]==='済'?item.on : s[item.key]==='未'?item.off : '';
+  return '';
+}
+
+function renderStatusCard(d) {
+  if(!d.status) d.status={};
+  const s = d.status;
+
+  // ボタン行
+  let h = `<div class="status-btns">`;
+  STATUS_ITEMS.forEach(item => {
+    const cls = chipClass(d, item);
+    const summary = chipSummary(d, item);
+    const isOpen = openStatusKey===item.key;
+    h += `<div class="status-chip ${cls}" onclick="toggleStatusPanel('${item.key}')" style="${isOpen?'border-color:#1a5276;background:#eaf2f8;color:#1a5276;':''}">`;
+    h += `<span class="chip-dot"></span>`;
+    h += `${item.icon} ${summary||item.label}`;
+    h += `</div>`;
+  });
+  h += `</div>`;
+
+  // 展開パネル
+  if(openStatusKey) {
+    const item = STATUS_ITEMS.find(x=>x.key===openStatusKey);
+    if(item) {
+      h += `<div class="status-panel"><div class="status-panel-inner">`;
+      h += `<div class="status-panel-title">${item.icon} ${item.label}<button class="status-panel-close" onclick="toggleStatusPanel(null)">閉じる</button></div>`;
+
+      if(item.type==='dates') {
+        h += `<div class="status-row"><span class="status-label">契約予定日</span>
+          <div class="status-val">${dateDiffText(s.contract_date)}
+          <input type="date" class="status-date" value="${s.contract_date||''}" onchange="setStatus('contract_date',this.value)">
+          </div></div>`;
+        h += `<div class="status-row"><span class="status-label">決済日</span>
+          <div class="status-val">${dateDiffText(s.settlement_date)}
+          <input type="date" class="status-date" value="${s.settlement_date||''}" onchange="setStatus('settlement_date',this.value)">
+          </div></div>`;
+      } else if(item.type==='choice') {
+        h += `<div class="status-row"><span class="status-label">${item.label}</span>
+          <div class="status-val"><div class="status-toggle">`;
+        item.opts.forEach(o => {
+          h += `<button class="${s[item.key]===o.v?o.c:''}" onclick="setStatus('${item.key}','${o.v}')">${o.l}</button>`;
+        });
+        h += `</div></div></div>`;
+      } else if(item.type==='toggle') {
+        h += `<div class="status-row"><span class="status-label">${item.label}</span>
+          <div class="status-val"><div class="status-toggle">
+          <button class="${s[item.key]==='済'?'s-yes':''}" onclick="setStatus('${item.key}','済')">${item.on}</button>
+          <button class="${s[item.key]==='未'?'s-no':''}" onclick="setStatus('${item.key}','未')">${item.off}</button>
+          </div></div></div>`;
+      }
+
+      h += `</div></div>`;
+    }
+  }
+
+  return h;
+}
+
+function toggleStatusPanel(key) {
+  openStatusKey = openStatusKey===key ? null : key;
+  const d=load().find(x=>x.id===curId);if(!d)return;
+  renderKeepScroll(d);
+}
+
+function setStatus(key, val) {
+  const deals=load();const d=deals.find(x=>x.id===curId);if(!d)return;
+  if(!d.status) d.status={};
+  if(d.status[key]===val && key!=='contract_date' && key!=='settlement_date') {
+    delete d.status[key];
+  } else {
+    d.status[key]=val;
+  }
+  save(deals);renderKeepScroll(d);
+}
+
+function renderDetail(d) {
+  let h = renderEditPanel(d);
+  h += renderStatusCard(d);
+  Object.entries(SECTIONS).forEach(([catKey, cat]) => {
+    cat.groups.forEach(g => {
+      if (g.cond && g.cond !== d.type) return;
+      if (g.notFor && g.notFor === d.type) return;
+      // 道路セクションは特別レンダリング
+      if (g.special === 'road') { h += renderRoadSection(d); return; }
+      if (g.special === 'ms_hearing') { h += renderHearing(d); return; }
+
+      const done = g.items.filter(i=>(d.ck||{})[i.id]).length;
+      const all = g.items.length;
+      const reqCount = g.items.filter(i=>(d.req||{})[i.id]&&!(d.ck||{})[i.id]).length;
+      const bc = done===all ? 'badge-done' : 'badge-todo';
+      const secIdx = g.title;
+      const isOpen = isSecOpen(secIdx);
+      h += `<div class="section">
+        <div class="sec-head" data-idx="${secIdx}" onclick="toggle(this)">${g.title}${reqCount?'<span style="font-size:11px;color:#c0392b;font-weight:700;margin-left:6px;">⚠️'+reqCount+'件</span>':''}<span class="badge ${bc}">${done}/${all}</span></div>
+        <div class="sec-body" style="${isOpen?'':'display:none;'}">${g.desc?'<div style="font-size:13px;color:#c0392b;font-weight:700;padding:6px 0 10px;border-bottom:1px solid #f0f0f0;">'+esc(g.desc)+'</div>':''}${g.items.map(i => {
+          const chk = (d.ck||{})[i.id];
+          const tval=(d.vals||{})[i.id]||'';
+          const req=(d.req||{})[i.id];
+          return `<div class="item ${chk?'done':''}" style="${i.indent?'margin-left:16px;padding-left:8px;border-left:3px solid #2980b9;':''}">
+            <input type="checkbox" ${chk?'checked':''} onchange="ck('${i.id}',this.checked)">
+            <div style="flex:1;">
+              <div class="item-label">${esc(i.l)}</div>
+              ${i.s?'<div class="item-sub" style="'+(i.alert?'color:#c0392b;font-weight:700;':'')+'">'+esc(i.s)+'</div>':''}
+              ${i.hasText&&chk?'<input type="text" style="margin-top:4px;width:100%;padding:6px 8px;border:1px solid #ddd;border-radius:6px;font-size:13px;" placeholder="'+esc(i.placeholder||'')+'" value="'+esc(tval)+'" onchange="saveVal(\''+i.id+'\',this.value)">':''}
+            </div>
+            <button class="req-btn ${req?'on':''}" onclick="toggleReq('${i.id}')">${req?'⚠️ 要取得':'＋ 取得指示'}</button>
+          </div>`;
+        }).join('')}</div>
+      </div>`;
+    });
+  });
+
+  h += `<div class="section"><div class="sec-head">メモ</div>
+    <div class="sec-body"><textarea class="memo-box" placeholder="メモ..." oninput="saveMemo(this.value)">${esc(d.memo||'')}</textarea></div></div>`;
+  h += `<button class="share-btn" onclick="share()">コピーして共有</button>`;
+  h += `<button class="del-btn" onclick="del()">削除</button>`;
+
+  document.getElementById('dBody').innerHTML = h;
+}
+
+// 開閉状態を保持（セッション中）
+const openState = {};
+function toggle(el) {
+  const b=el.nextElementSibling;
+  const idx=el.dataset.idx;
+  const isOpen = b.style.display!=='none';
+  b.style.display = isOpen ? 'none' : 'block';
+  if(idx) openState[curId+'_'+idx] = !isOpen;
+}
+function isSecOpen(idx) {
+  const key = curId+'_'+idx;
+  if(key in openState) return openState[key];
+  return false;
+}
+function saveOpenStates() {
+  document.querySelectorAll('.sec-head[data-idx]').forEach(el=>{
+    const body = el.nextElementSibling;
+    if(body) openState[curId+'_'+el.dataset.idx] = body.style.display !== 'none';
+  });
+}
+
+function ck(itemId, v) {
+  const deals=load(); const d=deals.find(x=>x.id===curId); if(!d) return;
+  if(!d.ck) d.ck={};
+  d.ck[itemId]=v;
+  save(deals); renderKeepScroll(d);
+}
+
+function renderKeepScroll(d) {
+  const sy = window.scrollY;
+  saveOpenStates();
+  renderDetail(d);
+  requestAnimationFrame(()=>window.scrollTo(0, sy));
+}
+function saveMemo(v) {
+  const deals=load(); const d=deals.find(x=>x.id===curId); if(!d) return;
+  d.memo=v; save(deals);
+}
+function del() {
+  if(!confirm('削除しますか？')) return;
+  save(load().filter(x=>x.id!==curId)); goList();
+}
+function share() {
+  const d=load().find(x=>x.id===curId); if(!d) return;
+  const pct=calcPct(d);
+  let txt=`【${TYPE_LABELS[d.type]}】${d.loc}\n${d.seller?'売主: '+d.seller+'\n':''}買主: ${d.buyer}\n進捗: ${pct}%\n\n`;
+  // 接道情報
+  if(d.roads&&d.roads.length){
+    txt+='【接道】\n';
+    d.roads.forEach((r,i)=>{
+      const tl=ROAD_TYPES.find(x=>x.v===r.type);
+      txt+=`${i+1}. ${r.dir||'?'}側 ${r.pub||''} ${tl?tl.l:''} 幅員${r.width||'?'}m 接道長${r.front||'?'}m\n`;
+    });
+    txt+='\n';
+  }
+  // 要取得リスト
+  const reqItems=[];
+  Object.values(SECTIONS).forEach(cat=>{
+    cat.groups.forEach(g=>{
+      if(g.cond&&g.cond!==d.type) return;
+      if(g.notFor&&g.notFor===d.type) return;
+      if(g.special) return;
+      g.items.forEach(i=>{ if((d.req||{})[i.id]&&!(d.ck||{})[i.id]) reqItems.push('□ '+i.l); });
+    });
+  });
+  if(reqItems.length){
+    txt+=`【要取得 ${reqItems.length}件】\n${reqItems.join('\n')}`;
+  } else {
+    txt+='要取得なし';
+  }
+  // ヒアリング結果
+  if(d.hear && Object.keys(d.hear).some(k=>d.hear[k])){
+    txt+='\n\n【ヒアリング結果】\n';
+    MS_HEARING.forEach(q=>{
+      if(q.type==='facility') return;
+      if(d.hear[q.id]) txt+=q.q+': '+d.hear[q.id]+(q.sub&&d.hear[q.sub]?' ('+d.hear[q.sub]+')':'')+'\n';
+    });
+  }
+  // 施設情報
+  if(d.fac && Object.keys(d.fac).length){
+    let facTxt='';
+    FACILITIES.forEach(f=>{
+      const data=d.fac[f.key];if(!data||!data.exists)return;
+      let line=f.name+': '+data.exists;
+      if(data.exists==='あり'){
+        if(f.multiType && data.types && data.types.length){
+          const parts=data.types.map(t=>{
+            const p=(data.prices||{})[t];
+            return t+(p?' '+p+'円':'');
+          });
+          line+=' ('+parts.join(', ')+')';
+        } else if(f.multiType && (data.fee_min||data.fee_max)){
+          line+=' '+(data.fee_min||'?')+'〜'+(data.fee_max||'?')+'円';
+        } else if(data.fee_min||data.fee_max){
+          line+=' '+(data.fee_min||'?')+'〜'+(data.fee_max||'?')+'円';
+        }
+        if(data.vacancy) line+=' 空き:'+data.vacancy+(data.vacancy==='あり'&&data.vacancy_num?' '+data.vacancy_num+'台':'');
+        if(data.note) line+=' / '+data.note;
+      }
+      facTxt+=line+'\n';
+    });
+    if(facTxt) txt+='\n【駐車場等】\n'+facTxt;
+  }
+  if(d.memo) txt+=`\n\nメモ: ${d.memo}`;
+  navigator.clipboard.writeText(txt).then(()=>{
+    alert('コピーしました。LINEに貼り付けてください。');
+  }).catch(()=>{
+    // fallback: テキストエリアで手動コピー
+    prompt('下記をコピーしてください:', txt);
+  });
+}
+
+// ====== エリアデータ（一都三県） ======
+const AREAS = {
+  "東京都": {
+    "23区": ["千代田区","中央区","港区","新宿区","文京区","台東区","墨田区","江東区","品川区","目黒区","大田区","世田谷区","渋谷区","中野区","杉並区","豊島区","北区","荒川区","板橋区","練馬区","足立区","葛飾区","江戸川区"],
+    "多摩": ["八王子市","立川市","武蔵野市","三鷹市","青梅市","府中市","昭島市","調布市","町田市","小金井市","小平市","日野市","東村山市","国分寺市","国立市","福生市","狛江市","東大和市","清瀬市","東久留米市","武蔵村山市","多摩市","稲城市","羽村市","あきる野市","西東京市","瑞穂町","日の出町","檜原村","奥多摩町"]
+  },
+  "神奈川県": {
+    "横浜市": ["鶴見区","神奈川区","西区","中区","南区","保土ケ谷区","磯子区","金沢区","港北区","戸塚区","港南区","旭区","緑区","瀬谷区","栄区","泉区","青葉区","都筑区"],
+    "川崎市": ["川崎区","幸区","中原区","高津区","多摩区","宮前区","麻生区"],
+    "相模原市": ["緑区","中央区","南区"],
+    "その他": ["横須賀市","平塚市","鎌倉市","藤沢市","小田原市","茅ヶ崎市","逗子市","三浦市","秦野市","厚木市","大和市","伊勢原市","海老名市","座間市","南足柄市","綾瀬市"]
+  },
+  "埼玉県": {
+    "さいたま市": ["西区","北区","大宮区","見沼区","中央区","桜区","浦和区","南区","緑区","岩槻区"],
+    "主要市": ["川越市","熊谷市","川口市","行田市","所沢市","飯能市","加須市","本庄市","東松山市","春日部市","狭山市","羽生市","鴻巣市","深谷市","上尾市","草加市","越谷市","蕨市","戸田市","入間市","朝霞市","志木市","和光市","新座市","桶川市","久喜市","北本市","八潮市","富士見市","三郷市","蓮田市","坂戸市","幸手市","鶴ヶ島市","日高市","吉川市","ふじみ野市","白岡市"]
+  },
+  "千葉県": {
+    "千葉市": ["中央区","花見川区","稲毛区","若葉区","緑区","美浜区"],
+    "主要市": ["銚子市","市川市","船橋市","館山市","木更津市","松戸市","野田市","茂原市","成田市","佐倉市","東金市","旭市","習志野市","柏市","勝浦市","市原市","流山市","八千代市","我孫子市","鎌ケ谷市","君津市","富津市","浦安市","四街道市","袖ケ浦市","八街市","印西市","白井市","富里市"]
+  }
+};
+
+// ====== 新規 ======
+let selType = '';
+
+function initPrefSelect() {
+  const sel = document.getElementById('inPref');
+  sel.innerHTML = '<option value="">都県</option>';
+  Object.keys(AREAS).forEach(p => {
+    sel.innerHTML += `<option value="${p}">${p}</option>`;
+  });
+}
+function onPrefChange() {
+  const pref = document.getElementById('inPref').value;
+  const sel = document.getElementById('inCity');
+  sel.innerHTML = '<option value="">市区町村</option>';
+  if (!pref || !AREAS[pref]) return;
+  Object.entries(AREAS[pref]).forEach(([group, cities]) => {
+    const og = document.createElement('optgroup');
+    og.label = group;
+    cities.forEach(c => {
+      const o = document.createElement('option');
+      // 政令市の区は「横浜市鶴見区」のように表示
+      const isKu = ["横浜市","川崎市","相模原市","さいたま市","千葉市"].includes(group);
+      o.value = isKu ? group + c : c;
+      o.textContent = isKu ? group + c : c;
+      og.appendChild(o);
+    });
+    sel.appendChild(og);
+  });
+}
+
+function openNew() {
+  selType='';
+  document.querySelectorAll('.type-btn').forEach(b=>b.classList.remove('selected'));
+  document.getElementById('inSeller').value='';
+  document.getElementById('inBuyer').value='';
+  document.getElementById('inTown').value='';
+  document.getElementById('inPrice').value='';
+  initPrefSelect();
+  document.getElementById('inCity').innerHTML='<option value="">市区町村</option>';
+  document.getElementById('modal').classList.add('show');
+}
+function closeNew() { document.getElementById('modal').classList.remove('show'); }
+function pickType(el) {
+  document.querySelectorAll('.type-btn').forEach(b=>b.classList.remove('selected'));
+  el.classList.add('selected'); selType=el.dataset.v;
+}
+function createDeal() {
+  if(!selType) { alert('種別を選んでください'); return; }
+  const pref = document.getElementById('inPref').value;
+  const city = document.getElementById('inCity').value;
+  if(!city) { alert('市区町村を選んでください'); return; }
+  const town = document.getElementById('inTown').value.trim();
+  const loc = city + (town ? ' ' + town : '');
+  const buyer=document.getElementById('inBuyer').value.trim();
+  const seller=document.getElementById('inSeller').value.trim();
+  const price=document.getElementById('inPrice').value.trim();
+  const deals=load();
+  deals.unshift({ id:Date.now().toString(36), type:selType, pref, loc, seller, buyer, price, ck:{}, memo:'', roads:[{dir:'',pub:'公道',type:'',width:'',front:''}], created:new Date().toISOString() });
+  save(deals); closeNew(); renderList();
+}
+
+// ====== ユーティリティ ======
+function show(id) { document.querySelectorAll('.page').forEach(p=>p.classList.remove('active')); document.getElementById(id).classList.add('active'); }
+function esc(s) { const d=document.createElement('div'); d.textContent=s; return d.innerHTML; }
+
+renderList();
+</script>
+</body>
+</html>
