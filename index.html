@@ -1587,7 +1587,7 @@ function show(id) { document.querySelectorAll('.page').forEach(p=>p.classList.re
 function esc(s) { const d=document.createElement('div'); d.textContent=s; return d.innerHTML; }
 
 // ====== クラウド同期 ======
-const CLOUD_URL = 'https://jsonblob.com/api/jsonBlob/019cf14f-f792-7201-a602-6aa49df4ad3a';
+const CLOUD_URL = 'https://script.google.com/macros/s/AKfycbyzUoqbu2qCxFiA00RDSDifMZk1xkruxr6iK_1d0J_hedGQPu_DM1qWR0581UrHLgjHtQ/exec';
 
 function setSyncStatus(msg, cls) {
   const el = document.getElementById('syncStatus');
@@ -1598,8 +1598,7 @@ async function cloudSave() {
   setSyncStatus('保存中...', '');
   try {
     const res = await fetch(CLOUD_URL, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
+      method: 'POST',
       body: JSON.stringify(load())
     });
     if(!res.ok) throw new Error(res.status);
