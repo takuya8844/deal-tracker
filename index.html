@@ -197,6 +197,29 @@ body {
 .edit-row { display: flex; gap: 8px; }
 .edit-row .edit-field { flex: 1; }
 
+/* 案件切り替えタブ */
+.deal-tabs {
+  display: flex; gap: 0; overflow-x: auto; -webkit-overflow-scrolling: touch;
+  background: #e8edf2; padding: 6px 6px 0;
+  scrollbar-width: none;
+}
+.deal-tabs::-webkit-scrollbar { display: none; }
+.deal-tab {
+  flex-shrink: 0; padding: 8px 14px; border-radius: 10px 10px 0 0;
+  font-size: 12px; font-weight: 700; cursor: pointer;
+  background: transparent; color: #888; border: none;
+  max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  transition: all 0.15s;
+}
+.deal-tab:active { opacity: 0.7; }
+.deal-tab.active {
+  background: white; color: #1a5276;
+  box-shadow: 0 -1px 3px rgba(0,0,0,0.06);
+}
+.deal-tab .tab-type {
+  font-size: 9px; display: block; opacity: 0.7; margin-bottom: 1px;
+}
+
 /* ステータスボタン群 */
 .status-btns {
   display: flex; flex-wrap: wrap; gap: 6px;
@@ -449,6 +472,7 @@ body {
 
 <!-- ========== 詳細画面 ========== -->
 <div id="pageDetail" class="page">
+  <div class="deal-tabs" id="dealTabs"></div>
   <div class="detail-header" id="dHeader">
     <div class="back" onclick="goList()">← 物件一覧</div>
     <div id="dHeaderContent"></div>
@@ -497,6 +521,24 @@ body {
     <div class="field">
       <label>価格（万円）</label>
       <input type="text" id="inPrice" inputmode="numeric" placeholder="例: 4980">
+    </div>
+
+    <div class="field">
+      <label>契約予定日</label>
+      <input type="date" id="inContractDate">
+    </div>
+
+    <div class="field">
+      <label>決済日</label>
+      <input type="date" id="inSettleDate">
+    </div>
+
+    <div class="field">
+      <label>契約不適合</label>
+      <div class="type-select" id="defectSelect" style="grid-template-columns:1fr 1fr;">
+        <div class="type-btn" data-v="あり" onclick="pickDefect(this)">あり</div>
+        <div class="type-btn" data-v="なし" onclick="pickDefect(this)">なし（免責）</div>
+      </div>
     </div>
 
     <div class="btn-row">
@@ -682,10 +724,42 @@ function renderHeader(d) {
   document.getElementById('dHeaderContent').innerHTML = hdr;
 }
 
+function renderTabs() {
+  const deals = load();
+  const el = document.getElementById('dealTabs');
+  el.innerHTML = deals.map(d => {
+    const isActive = d.id===curId;
+    const label = d.loc || '未設定';
+    const shortLabel = label.length > 10 ? label.substring(0,10)+'…' : label;
+    return `<button class="deal-tab ${isActive?'active':''}" onclick="switchDeal('${d.id}')">
+      <span class="tab-type">${TYPE_LABELS[d.type]||''}</span>${esc(shortLabel)}
+    </button>`;
+  }).join('');
+  // アクティブタブをスクロール
+  requestAnimationFrame(()=>{
+    const active = el.querySelector('.deal-tab.active');
+    if(active) active.scrollIntoView({behavior:'smooth',block:'nearest',inline:'center'});
+  });
+}
+
+function switchDeal(id) {
+  if(id===curId) return;
+  curId = id;
+  editOpen = false;
+  openStatusKey = null;
+  const d = load().find(x=>x.id===id); if(!d) return;
+  renderTabs();
+  renderHeader(d);
+  renderDetail(d);
+  window.scrollTo(0,0);
+}
+
 function goDetail(id) {
   curId = id;
   editOpen = false;
+  openStatusKey = null;
   const d = load().find(x=>x.id===id); if(!d) return;
+  renderTabs();
   renderHeader(d);
   renderDetail(d);
   show('pageDetail');
@@ -1441,13 +1515,20 @@ function onPrefChange() {
   });
 }
 
+let selDefect = '';
+function pickDefect(el) {
+  document.querySelectorAll('#defectSelect .type-btn').forEach(b=>b.classList.remove('selected'));
+  el.classList.add('selected'); selDefect=el.dataset.v;
+}
 function openNew() {
-  selType='';
+  selType=''; selDefect='';
   document.querySelectorAll('.type-btn').forEach(b=>b.classList.remove('selected'));
   document.getElementById('inSeller').value='';
   document.getElementById('inBuyer').value='';
   document.getElementById('inTown').value='';
   document.getElementById('inPrice').value='';
+  document.getElementById('inContractDate').value='';
+  document.getElementById('inSettleDate').value='';
   initPrefSelect();
   document.getElementById('inCity').innerHTML='<option value="">市区町村</option>';
   document.getElementById('modal').classList.add('show');
@@ -1467,8 +1548,14 @@ function createDeal() {
   const buyer=document.getElementById('inBuyer').value.trim();
   const seller=document.getElementById('inSeller').value.trim();
   const price=document.getElementById('inPrice').value.trim();
+  const contractDate=document.getElementById('inContractDate').value;
+  const settleDate=document.getElementById('inSettleDate').value;
+  const status={};
+  if(contractDate) status.contract_date=contractDate;
+  if(settleDate) status.settlement_date=settleDate;
+  if(selDefect) status.defect=selDefect;
   const deals=load();
-  deals.unshift({ id:Date.now().toString(36), type:selType, pref, loc, seller, buyer, price, ck:{}, memo:'', roads:[{dir:'',pub:'公道',type:'',width:'',front:''}], created:new Date().toISOString() });
+  deals.unshift({ id:Date.now().toString(36), type:selType, pref, loc, seller, buyer, price, status, ck:{}, memo:'', roads:[{dir:'',pub:'公道',type:'',width:'',front:''}], created:new Date().toISOString() });
   save(deals); closeNew(); renderList();
 }
 
