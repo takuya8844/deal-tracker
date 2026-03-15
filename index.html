@@ -1587,21 +1587,7 @@ function show(id) { document.querySelectorAll('.page').forEach(p=>p.classList.re
 function esc(s) { const d=document.createElement('div'); d.textContent=s; return d.innerHTML; }
 
 // ====== クラウド同期 ======
-// URLの#以降からキーを読み取り、localStorageに保存
-(function initSync(){
-  const hash = location.hash.slice(1);
-  if(hash && hash.includes('|')) {
-    localStorage.setItem('dt2_sync', hash);
-    history.replaceState(null, '', location.pathname); // URLからキーを消す
-  }
-})();
-function syncCfg() {
-  const v = localStorage.getItem('dt2_sync');
-  if(!v) return null;
-  const [g,t] = v.split('|');
-  return (g&&t) ? {gistId:g, token:t} : null;
-}
-const SYNC = syncCfg();
+const CLOUD_URL = 'https://jsonblob.com/api/jsonBlob/019cf14f-f792-7201-a602-6aa49df4ad3a';
 
 function setSyncStatus(msg, cls) {
   const el = document.getElementById('syncStatus');
@@ -1609,15 +1595,12 @@ function setSyncStatus(msg, cls) {
 }
 
 async function cloudSave() {
-  const c = syncCfg();
-  if(!c) { alert('同期URLで開き直してください'); return; }
   setSyncStatus('保存中...', '');
   try {
-    const data = JSON.stringify(load());
-    const res = await fetch('https://api.github.com/gists/'+c.gistId, {
-      method: 'PATCH',
-      headers: { 'Authorization': 'token '+c.token, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ files: { 'deals.json': { content: data } } })
+    const res = await fetch(CLOUD_URL, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(load())
     });
     if(!res.ok) throw new Error(res.status);
     const now = new Date();
@@ -1631,23 +1614,19 @@ async function cloudSave() {
 }
 
 async function cloudLoad() {
-  const c = syncCfg();
-  if(!c) { setSyncStatus('未接続', ''); return; }
   setSyncStatus('読込中...', '');
   try {
-    const res = await fetch('https://api.github.com/gists/'+c.gistId, {
-      headers: { 'Authorization': 'token '+c.token }
-    });
+    const res = await fetch(CLOUD_URL);
     if(!res.ok) throw new Error(res.status);
-    const gist = await res.json();
-    const content = gist.files['deals.json'].content;
-    const deals = JSON.parse(content);
-    if(Array.isArray(deals)) {
+    const deals = await res.json();
+    if(Array.isArray(deals) && deals.length > 0) {
       save(deals);
       renderList();
       const now = new Date();
       const t = now.getHours()+':'+String(now.getMinutes()).padStart(2,'0');
       setSyncStatus('✓ '+deals.length+'件 '+t, 'ok');
+    } else {
+      setSyncStatus('データなし', '');
     }
   } catch(e) {
     setSyncStatus('✕ 読込失敗', 'err');
