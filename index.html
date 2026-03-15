@@ -1397,6 +1397,7 @@ function renderDetail(d) {
 
   h += `<div class="section"><div class="sec-head">メモ</div>
     <div class="sec-body"><textarea class="memo-box" placeholder="メモ..." oninput="saveMemo(this.value)">${esc(d.memo||'')}</textarea></div></div>`;
+  h += `<button class="sync-btn sync-save" onclick="cloudSave()" style="display:flex;width:calc(100% - 16px);margin:8px auto;padding:14px;justify-content:center;font-size:15px;border-radius:10px;">💾 クラウドに保存</button>`;
   h += `<button class="share-btn" onclick="share()">コピーして共有</button>`;
   h += `<button class="del-btn" onclick="del()">削除</button>`;
 
